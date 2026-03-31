@@ -648,15 +648,26 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // URLパラメータから自動入力
+  // ハッシュ（#）からJSONを読み込んで自動入力
   function loadFromParams() {
-    const p = new URLSearchParams(window.location.search);
-    if (!p.has('purpose')) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+
+    let data;
+    try {
+      // Base64デコード → JSON解析
+      const json = decodeURIComponent(escape(atob(hash)));
+      data = JSON.parse(json);
+    } catch(e) {
+      console.warn('データ読み込み失敗:', e);
+      return;
+    }
 
     const fields = ['client','purpose','target','pain','service','benefit','strength','proof','offer','objection','urgency','design','deadline','other'];
     fields.forEach(id => {
       const el = document.getElementById(id);
-      if (el && p.has(id)) el.value = decodeURIComponent(p.get(id));
+      if (!el || !data[id]) return;
+      el.value = data[id];
     });
 
     // 自動入力バナーを表示
