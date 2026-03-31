@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>要件定義書ジェネレーター｜Studio Arc</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #f4f5f7;
+      min-height: 100vh;
+      color: #1a1a2e;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: #4a90e2;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 13px; flex-shrink: 0;
+    }
+    header h1 { font-size: 16px; }
+    header p  { font-size: 12px; color: #a0a8b8; margin-top: 2px; }
+
+    .container {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    /* 入力パネル */
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 24px;
+    }
+    .panel-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #1a1a2e;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #4a90e2;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 5px;
+    }
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid #d8dde8;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fafafa;
+    }
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus { border-color: #4a90e2; background: #fff; }
+    .field textarea { resize: vertical; min-height: 64px; line-height: 1.6; }
+
+    .generate-btn {
+      width: 100%;
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .generate-btn:hover { background: #357abd; }
+
+    /* 出力パネル */
+    #output-panel {
+      display: none;
+      grid-column: 1 / -1;
+    }
+    #output-panel.visible { display: block; }
+
+    .doc {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 32px;
+    }
+    .doc-header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #1a1a2e;
+    }
+    .doc-header h2 { font-size: 20px; margin-bottom: 6px; }
+    .doc-header p  { font-size: 13px; color: #888; }
+
+    .doc-section { margin-bottom: 28px; }
+    .doc-section h3 {
+      font-size: 14px;
+      font-weight: bold;
+      color: #fff;
+      background: #1a1a2e;
+      padding: 7px 14px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .doc-section h4 {
+      font-size: 13px;
+      font-weight: bold;
+      color: #4a90e2;
+      margin: 14px 0 6px;
+    }
+    .doc-section p {
+      font-size: 13px;
+      line-height: 1.8;
+      color: #333;
+    }
+
+    /* 概要テーブル */
+    .info-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .info-table tr { border-bottom: 1px solid #eee; }
+    .info-table td { padding: 8px 12px; }
+    .info-table td:first-child {
+      width: 140px;
+      font-weight: bold;
+      color: #555;
+      background: #f8f9fa;
+    }
+
+    /* LP構成テーブル */
+    .lp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .lp-table th {
+      background: #4a90e2;
+      color: #fff;
+      padding: 9px 12px;
+      text-align: left;
+      font-weight: bold;
+    }
+    .lp-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+      line-height: 1.7;
+    }
+    .lp-table tr:nth-child(even) td { background: #fafbff; }
+    .lp-table .section-no {
+      width: 36px;
+      text-align: center;
+      font-weight: bold;
+      color: #4a90e2;
+    }
+    .lp-table .section-name {
+      width: 130px;
+      font-weight: bold;
+    }
+
+    /* スケジュールテーブル */
+    .schedule-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .schedule-table th {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 9px 12px;
+      text-align: left;
+    }
+    .schedule-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+    }
+    .schedule-table tr:nth-child(even) td { background: #f8f9fa; }
+    .phase-badge {
+      display: inline-block;
+      background: #e8f0fe;
+      color: #4a90e2;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    /* 担当者指示 */
+    .assignee-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .assignee-card .name {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .assignee-card .name span {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #4a90e2;
+      color: #fff;
+      font-size: 11px;
+      text-align: center;
+      line-height: 28px;
+    }
+    .assignee-card ul {
+      font-size: 12px;
+      color: #444;
+      padding-left: 18px;
+      line-height: 2;
+    }
+
+    /* 注意事項 */
+    .note-list {
+      list-style: none;
+      font-size: 13px;
+    }
+    .note-list li {
+      padding: 6px 0 6px 20px;
+      position: relative;
+      border-bottom: 1px solid #f0f0f0;
+      line-height: 1.7;
+    }
+    .note-list li::before {
+      content: '⚠';
+      position: absolute;
+      left: 0;
+      color: #e8a020;
+    }
+
+    /* 出力操作ボタン */
+    .output-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .action-btn {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .action-btn.copy { background: #1a1a2e; color: #fff; }
+    .action-btn.copy:hover { background: #2d2d4e; }
+    .action-btn.reset { background: #f0f0f0; color: #555; }
+    .action-btn.reset:hover { background: #e0e0e0; }
+    #copy-msg {
+      font-size: 13px; color: #4a90e2;
+      opacity: 0; transition: opacity 0.3s;
+      align-self: center;
+    }
+
+    @media (max-width: 700px) {
+      .container { grid-template-columns: 1fr; }
+      #output-panel { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="avatar">田中</div>
+  <div>
+    <h1>要件定義書ジェネレーター</h1>
+    <p>Studio Arc ディレクター専用ツール</p>
+  </div>
+</header>
+
+<!-- 自動入力バナー -->
+<div id="auto-fill-banner" style="display:none; background:#e8f4e8; border-bottom:1px solid #b2d8b2; padding:12px 32px; align-items:center; gap:10px; font-size:13px; color:#2a6a2a;">
+  <span>✅</span>
+  <span>スプレッドシートのヒアリングデータを自動で読み込みました。内容を確認して「要件定義書を生成する」を押してください。</span>
+</div>
+
+<div class="container">
+
+  <!-- 入力フォーム -->
+  <div class="panel">
+    <div class="panel-title">📋 ヒアリング情報を入力</div>
+
+    <div class="field">
+      <label>案件名・クライアント名</label>
+      <input type="text" id="client" placeholder="例：株式会社〇〇 ダイエットサプリLP">
+    </div>
+    <div class="field">
+      <label>LPの目的</label>
+      <select id="purpose">
+        <option value="商品購入">商品購入</option>
+        <option value="問い合わせ・資料請求">問い合わせ・資料請求</option>
+        <option value="メルマガ登録">メルマガ登録</option>
+        <option value="予約・申し込み">予約・申し込み</option>
+        <option value="採用応募">採用応募</option>
+        <option value="サービス・会社紹介">サービス・会社紹介</option>
+        <option value="イベント告知">イベント告知</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>ターゲット像</label>
+      <textarea id="target" placeholder="例：30〜40代の働く女性。育児と仕事の両立で時間がなく、自分の体型管理に悩んでいる"></textarea>
+    </div>
+    <div class="field">
+      <label>ターゲットの悩み・課題</label>
+      <textarea id="pain" placeholder="例：運動する時間がない、食事制限がつらい、続かない"></textarea>
+    </div>
+    <div class="field">
+      <label>商品・サービス概要</label>
+      <textarea id="service" placeholder="例：飲むだけで代謝を上げる国産ダイエットサプリ。月額3,980円、定期便あり"></textarea>
+    </div>
+    <div class="field">
+      <label>利用後の変化・ベネフィット</label>
+      <textarea id="benefit" placeholder="例：3ヶ月で平均-5kg、体が軽くなり自信がついた"></textarea>
+    </div>
+    <div class="field">
+      <label>強み・競合との差別化</label>
+      <textarea id="strength" placeholder="例：国内製造・無添加・返金保証あり。他社より成分量が3倍"></textarea>
+    </div>
+    <div class="field">
+      <label>実績・社会的証明</label>
+      <input type="text" id="proof" placeholder="例：お客様の声・導入実績・メディア掲載">
+    </div>
+    <div class="field">
+      <label>オファー・特典・保証</label>
+      <textarea id="offer" placeholder="例：初回50%OFF、送料無料、30日間返金保証"></textarea>
+    </div>
+    <div class="field">
+      <label>購入を迷う理由・想定される反論</label>
+      <textarea id="objection" placeholder="例：値段が高い、本当に効くか不安、続けられるか心配"></textarea>
+    </div>
+    <div class="field">
+      <label>緊急性・希少性</label>
+      <select id="urgency">
+        <option value="特にない">特にない</option>
+        <option value="期間限定のキャンペーンがある">期間限定キャンペーンあり</option>
+        <option value="数量・定員に限りがある">数量・定員に限りがある</option>
+        <option value="価格改定が予定されている">価格改定が予定されている</option>
+        <option value="季節・タイミングに理由がある">季節・タイミングに理由がある</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>デザインイメージ</label>
+      <input type="text" id="design" placeholder="例：シンプル・ミニマル、信頼感・誠実">
+    </div>
+    <div class="field">
+      <label>納期</label>
+      <select id="deadline">
+        <option value="2週間以内">2週間以内</option>
+        <option value="1ヶ月以内">1ヶ月以内</option>
+        <option value="2〜3ヶ月">2〜3ヶ月</option>
+        <option value="3ヶ月以上">3ヶ月以上</option>
+        <option value="未定・相談したい">未定・相談したい</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>その他・注意事項</label>
+      <textarea id="other" placeholder="例：競合A社には絶対に言及しない、薬機法に注意"></textarea>
+    </div>
+
+    <button class="generate-btn" onclick="generate()">要件定義書を生成する</button>
+  </div>
+
+  <!-- ヒント -->
+  <div class="panel">
+    <div class="panel-title">💡 生成される要件定義書の内容</div>
+    <div style="font-size:13px; line-height:2; color:#555;">
+      <p>① プロジェクト概要</p>
+      <p>② ターゲット・ペルソナ整理</p>
+      <p>③ 訴求軸・メインメッセージ方向性</p>
+      <p>④ LP構成案（セクション別コピー・デザイン指示）</p>
+      <p>⑤ 制作スケジュール（納期から逆算）</p>
+      <p>⑥ 担当者別タスク一覧</p>
+      <p>⑦ 注意事項・特記事項</p>
+      <br>
+      <p style="color:#aaa; font-size:12px;">LPの目的に応じて構成が変わります。<br>セールス系・紹介系・採用系を自動判定します。</p>
+    </div>
+  </div>
+
+  <!-- 出力エリア -->
+  <div id="output-panel">
+    <div class="output-actions">
+      <button class="action-btn copy" onclick="copyDoc()">テキストをコピー</button>
+      <button class="action-btn reset" onclick="resetOutput()">← 入力に戻る</button>
+      <span id="copy-msg">コピーしました！</span>
+    </div>
+    <div class="doc" id="doc-body"></div>
+  </div>
+
+</div>
+
+<script>
+  function get(id) {
+    return document.getElementById(id).value.trim();
+  }
+
+  function getLpSections(purpose) {
+    const sales = ['商品購入','問い合わせ・資料請求','メルマガ登録','予約・申し込み'];
+    const recruit = ['採用応募'];
+
+    if (recruit.includes(purpose)) {
+      return [
+        { name: 'ファーストビュー（FV）', copy: 'キャッチコピー＋応募CTAボタン。「こんな人を求めています」を一言で表す。', design: '会社・職場の雰囲気が伝わるメイン画像。明るく活気あるトーン。' },
+        { name: '会社・事業紹介',         copy: '何をやっている会社か、どんなビジョンを持っているかを簡潔に。', design: '会社ロゴ・代表写真または社内風景。信頼感のあるレイアウト。' },
+        { name: '仕事内容・ポジション',   copy: '具体的な業務内容・求めるスキル・やりがいを記載。', design: '業務イメージ写真またはアイコン。箇条書きで読みやすく。' },
+        { name: '社員の声',               copy: '実際に働く社員のリアルな声。入社前の不安→入社後の変化の流れで。', design: '顔写真＋吹き出し形式。人間味を出す。' },
+        { name: '働く環境・待遇',         copy: '給与・福利厚生・休日・リモート等の条件を明記。', design: '表やアイコンで見やすく整理。' },
+        { name: '採用フロー',             copy: '応募から入社までのステップを明確に。', design: 'ステップ図（矢印）形式。シンプルに4〜6ステップ。' },
+        { name: '応募CTA',                copy: '「まずはカジュアル面談から」等、ハードルを下げるCTA文。', design: '目立つCTAボタン。フォームまたはURLリンク。' },
+      ];
+    } else if (sales.includes(purpose)) {
+      return [
+        { name: 'ファーストビュー（FV）', copy: 'ターゲットの悩みを解決するキャッチコピー＋CTAボタン。一瞬で「自分ごと」にさせる。', design: 'インパクトのあるメイン画像。キャッチコピーは大きく。CTAボタンは色で目立たせる。' },
+        { name: '課題・共感',             copy: 'ターゲットの悩みを言語化し「わかってくれている」と感じさせる。問いかけ形式が効果的。', design: 'ダークトーン or 悩みを表すビジュアル。読み込みやすい縦長レイアウト。' },
+        { name: '解決策の提示',           copy: '「だから、これを作りました」の流れでサービスを自然に紹介。ベネフィット先行で。', design: '商品・サービスのメインビジュアル。明るいトーンに転換。' },
+        { name: 'ベネフィット一覧',       copy: '使った後の変化・得られるものを3〜5点。数字や具体例を入れる。', design: 'アイコン＋テキストのカード型。視覚的にわかりやすく並べる。' },
+        { name: '選ばれる理由・強み',     copy: '競合との差別化ポイントを3点程度。「他社ではなくここを選ぶ理由」を明確に。', design: '比較表 or チェックマーク形式。数字があれば大きく見せる。' },
+        { name: '実績・社会的証明',       copy: 'お客様の声・実績数・メディア掲載など信頼性の根拠を並べる。', design: '顔写真＋レビュー形式。星評価・ロゴ一覧など視覚的な信頼感。' },
+        { name: 'サービス詳細・料金',     copy: '内容・価格・提供形態を明確に。「思ったより安い」と感じさせる見せ方を工夫。', design: '料金表 or 内容一覧。シンプルで見やすいテーブル形式。' },
+        { name: 'オファー・特典',         copy: '今申し込む理由（特典・割引・保証）を強調。「今だけ」の価値を明確に。', design: '帯バナー形式。赤や黄など目立つ色でアクセント。' },
+        { name: 'よくある質問（FAQ）',    copy: '反論・不安を先回りして解消。購入を迷う理由をすべてここで潰す。', design: 'アコーディオン形式（JS対応）または縦並びQ&A形式。' },
+        { name: '最終CTA',               copy: 'もう一度ベネフィットを一言でまとめ、行動を促す。CTAボタンは目立たせる。', design: '背景色を変えて視覚的なアクセント。ボタンは大きく中央配置。' },
+      ];
+    } else {
+      // 紹介・イベント系
+      return [
+        { name: 'ファーストビュー（FV）', copy: 'サービス・イベントの一言紹介＋CTAまたは詳細誘導ボタン。', design: 'メインビジュアル大きめ。キャッチコピーは読みやすく。' },
+        { name: 'サービス・イベント概要', copy: '何を提供するか・何が起きるかを簡潔に説明。メリットも一言添える。', design: '概要テキスト＋関連画像またはイラスト。' },
+        { name: '主な特徴・内容',         copy: '3〜5つのポイントをわかりやすく。箇条書き or カード型。', design: 'アイコン＋テキストのカード型レイアウト。' },
+        { name: '活用シーン・事例',       copy: '「こんな人に向いています」「こんな使い方があります」の具体例。', design: '事例写真またはイラスト。実際のシーンが伝わるビジュアル。' },
+        { name: 'よくある質問（FAQ）',    copy: '参加・利用にあたっての疑問を解消。', design: 'シンプルなQ&A形式。' },
+        { name: 'お問い合わせ・CTA',      copy: '次のアクションを明確に。問い合わせ・登録・参加申し込みなど。', design: 'CTAボタン＋フォームまたはリンク。目立つデザイン。' },
+      ];
+    }
+  }
+
+  function getSchedule(deadline) {
+    const plans = {
+      '2週間以内':   [['要件定義・コンセプト', '田中・林', '1〜2日'], ['テキスト原稿', '林', '2〜3日'], ['デザインカンプ', '村上', '3〜4日'], ['HTML/CSS実装', '青木', '3〜4日'], ['確認・修正・納品', '田中', '2日']],
+      '1ヶ月以内':   [['要件定義・コンセプト', '田中・林', '3〜4日'], ['テキスト原稿', '林', '5〜7日'], ['デザインカンプ', '村上', '7〜10日'], ['HTML/CSS実装', '青木', '7〜10日'], ['確認・修正・納品', '田中', '3〜4日']],
+      '2〜3ヶ月':    [['要件定義・コンセプト', '田中・林', '7〜10日'], ['テキスト原稿', '林', '14〜20日'], ['デザインカンプ', '村上', '20〜25日'], ['HTML/CSS実装', '青木', '20〜25日'], ['確認・修正・納品', '田中', '7〜10日']],
+      '3ヶ月以上':   [['要件定義・コンセプト', '田中・林', '10〜14日'], ['テキスト原稿', '林', '20〜30日'], ['デザインカンプ', '村上', '30〜40日'], ['HTML/CSS実装', '青木', '30〜40日'], ['確認・修正・納品', '田中', '10〜14日']],
+      '未定・相談したい': [['要件定義・コンセプト', '田中・林', '要相談'], ['テキスト原稿', '林', '要相談'], ['デザインカンプ', '村上', '要相談'], ['HTML/CSS実装', '青木', '要相談'], ['確認・修正・納品', '田中', '要相談']],
+    };
+    return plans[deadline] || plans['1ヶ月以内'];
+  }
+
+  function generate() {
+    const data = {
+      client:    get('client')    || '（未入力）',
+      purpose:   get('purpose'),
+      target:    get('target')    || '（未入力）',
+      pain:      get('pain')      || '（未入力）',
+      service:   get('service')   || '（未入力）',
+      benefit:   get('benefit')   || '（未入力）',
+      strength:  get('strength')  || '（未入力）',
+      proof:     get('proof')     || '（未入力）',
+      offer:     get('offer')     || '（未入力）',
+      objection: get('objection') || '（未入力）',
+      urgency:   get('urgency'),
+      design:    get('design')    || '（未入力）',
+      deadline:  get('deadline'),
+      other:     get('other')     || 'なし',
+    };
+
+    const sections = getLpSections(data.purpose);
+    const schedule = getSchedule(data.deadline);
+    const today = new Date().toLocaleDateString('ja-JP');
+
+    const doc = document.getElementById('doc-body');
+    doc.innerHTML = `
+      <div class="doc-header">
+        <h2>LP制作 要件定義書</h2>
+        <p>作成日：${today}　｜　担当ディレクター：田中 誠</p>
+      </div>
+
+      <!-- ① プロジェクト概要 -->
+      <div class="doc-section">
+        <h3>① プロジェクト概要</h3>
+        <table class="info-table">
+          <tr><td>案件名</td><td>${data.client}</td></tr>
+          <tr><td>LPの目的</td><td>${data.purpose}</td></tr>
+          <tr><td>納期</td><td>${data.deadline}</td></tr>
+          <tr><td>制作チーム</td><td>田中 誠（Dir）／林 さくら（Copy）／村上 拓海（Design）／青木 健太（Code）</td></tr>
+          <tr><td>使用技術</td><td>HTML / CSS / JavaScript</td></tr>
+        </table>
+      </div>
+
+      <!-- ② ターゲット・ペルソナ -->
+      <div class="doc-section">
+        <h3>② ターゲット・ペルソナ整理</h3>
+        <h4>ターゲット像</h4>
+        <p>${data.target}</p>
+        <h4>抱えている悩み・課題</h4>
+        <p>${data.pain}</p>
+      </div>
+
+      <!-- ③ 訴求軸 -->
+      <div class="doc-section">
+        <h3>③ 訴求軸・メインメッセージ方向性</h3>
+        <h4>商品・サービス概要</h4>
+        <p>${data.service}</p>
+        <h4>ベネフィット（使った後の変化）</h4>
+        <p>${data.benefit}</p>
+        <h4>強み・差別化ポイント</h4>
+        <p>${data.strength}</p>
+        <h4>オファー・特典・保証</h4>
+        <p>${data.offer}</p>
+        <h4>緊急性・希少性</h4>
+        <p>${data.urgency}</p>
+      </div>
+
+      <!-- ④ LP構成案 -->
+      <div class="doc-section">
+        <h3>④ LP構成案</h3>
+        <table class="lp-table">
+          <thead>
+            <tr>
+              <th class="section-no">#</th>
+              <th class="section-name">セクション名</th>
+              <th>コピーライターへの指示（林）</th>
+              <th>デザイナーへの指示（村上）</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sections.map((s, i) => `
+              <tr>
+                <td class="section-no">${i + 1}</td>
+                <td class="section-name">${s.name}</td>
+                <td>${s.copy}</td>
+                <td>${s.design}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ⑤ スケジュール -->
+      <div class="doc-section">
+        <h3>⑤ 制作スケジュール（納期：${data.deadline}）</h3>
+        <table class="schedule-table">
+          <thead>
+            <tr><th>フェーズ</th><th>担当</th><th>目安期間</th></tr>
+          </thead>
+          <tbody>
+            ${schedule.map(([phase, person, period]) => `
+              <tr>
+                <td><span class="phase-badge">${phase}</span></td>
+                <td>${person}</td>
+                <td>${period}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ⑥ 担当者別タスク -->
+      <div class="doc-section">
+        <h3>⑥ 担当者別タスク一覧</h3>
+
+        <div class="assignee-card">
+          <div class="name"><span>林</span>林 さくら（コピーライター）</div>
+          <ul>
+            <li>コンセプトシート作成（訴求軸・ターゲット像の言語化）</li>
+            <li>全セクションのテキスト原稿作成</li>
+            <li>キャッチコピー3〜5案の提出</li>
+            <li>CTAボタンテキスト案の提出</li>
+            <li>反論処理：「${data.objection}」に対するFAQ文の作成</li>
+          </ul>
+        </div>
+
+        <div class="assignee-card">
+          <div class="name"><span>村</span>村上 拓海（デザイナー）</div>
+          <ul>
+            <li>ワイヤーフレーム作成（PC/SP）</li>
+            <li>デザインカンプ作成（カラー：${data.design}）</li>
+            <li>素材指示書の作成（画像・アイコン方針）</li>
+            <li>コーダーへのデザイン仕様書の提出</li>
+          </ul>
+        </div>
+
+        <div class="assignee-card">
+          <div class="name"><span>青</span>青木 健太（コーダー）</div>
+          <ul>
+            <li>HTML/CSS/JSによるLP実装</li>
+            <li>レスポンシブ対応（PC/SP）</li>
+            <li>スクロールアニメーション・インタラクション実装</li>
+            <li>Chrome・Safari・Firefoxでの動作確認</li>
+            ${sections.some(s => s.name.includes('FAQ')) ? '<li>FAQアコーディオンのJS実装</li>' : ''}
+          </ul>
+        </div>
+      </div>
+
+      <!-- ⑦ 注意事項 -->
+      <div class="doc-section">
+        <h3>⑦ 注意事項・特記事項</h3>
+        <ul class="note-list">
+          <li>実績・お客様の声は薬機法・景品表示法に配慮した表現に統一すること</li>
+          <li>デザインイメージ：「${data.design}」のトーンを全員で共有してから着手すること</li>
+          ${data.urgency !== '特にない' ? `<li>緊急性の訴求あり（${data.urgency}）：コピー・デザインで必ず反映すること</li>` : ''}
+          ${data.proof !== '（未入力）' ? `<li>社会的証明として「${data.proof}」を活用：素材・データの提供をクライアントに確認すること</li>` : ''}
+          ${data.other !== 'なし' ? `<li>${data.other}</li>` : ''}
+        </ul>
+      </div>
+    `;
+
+    document.getElementById('output-panel').classList.add('visible');
+    document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function copyDoc() {
+    const text = document.getElementById('doc-body').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const msg = document.getElementById('copy-msg');
+      msg.style.opacity = 1;
+      setTimeout(() => msg.style.opacity = 0, 2000);
+    });
+  }
+
+  function resetOutput() {
+    document.getElementById('output-panel').classList.remove('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // URLパラメータから自動入力
+  function loadFromParams() {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.has('purpose')) return;
+
+    const fields = ['client','purpose','target','pain','service','benefit','strength','proof','offer','objection','urgency','design','deadline','other'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && p.has(id)) el.value = decodeURIComponent(p.get(id));
+    });
+
+    // 自動入力バナーを表示
+    const banner = document.getElementById('auto-fill-banner');
+    if (banner) banner.style.display = 'flex';
+  }
+
+  loadFromParams();
+</script>
+</body>
+</html>
